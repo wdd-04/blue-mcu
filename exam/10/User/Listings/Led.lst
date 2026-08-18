@@ -1,0 +1,78 @@
+C51 COMPILER V9.54   LED                                                                   02/12/2025 16:27:13 PAGE 1   
+
+
+C51 COMPILER V9.54, COMPILATION OF MODULE LED
+OBJECT MODULE PLACED IN .\Objects\Led.obj
+COMPILER INVOKED BY: D:\Keil5\C51\BIN\C51.EXE ..\Driver\Led.c OPTIMIZE(8,SPEED) BROWSE INCDIR(..\Driver) DEBUG OBJECTEXT
+                    -END PRINT(.\Listings\Led.lst) TABS(2) OBJECT(.\Objects\Led.obj)
+
+line level    source
+
+   1          #include <Led.h>
+   2          
+   3          void Led_Disp(unsigned char addr,enable)
+   4          {
+   5   1        static unsigned char temp = 0x00;
+   6   1        static unsigned char temp_old = 0xff;
+   7   1        if(enable)
+   8   1          temp |= 0x01 << addr;
+   9   1        else
+  10   1          temp &= ~(0x01 << addr);
+  11   1        if(temp != temp_old)
+  12   1        {
+  13   2          P0 = ~temp;//点亮对应Led
+  14   2          P2 = P2 & 0x1f | 0x80;//选中Y4C锁存器
+  15   2          P2 &= 0x1f;//关闭Y4c锁存器   
+  16   2          temp_old = temp;//避免出现电流声
+  17   2        }
+  18   1      }
+  19          
+  20          void Beep(unsigned char flag)//蜂鸣器
+  21          {
+  22   1        static unsigned char temp = 0x00;
+  23   1        static unsigned char temp_old = 0xff;
+  24   1        if(flag)
+  25   1          temp |= 0x40;
+  26   1        else
+  27   1          temp &= ~0x40;
+  28   1        if(temp != temp_old)
+  29   1        {
+  30   2          P0 = ~temp;
+  31   2          P2 = P2 & 0x1f | 0xa0;//选中Y5C锁存器
+  32   2          P2 &= 0x1f;//关闭Y5c锁存器
+  33   2          temp_old = temp;
+  34   2        }
+  35   1      }
+  36          
+  37          void Relay(unsigned char flag)//继电器
+  38          {
+  39   1        static unsigned char temp = 0x00;
+  40   1        static unsigned char temp_old = 0xff;
+  41   1        if(flag)
+  42   1          temp |= 0x10;
+  43   1        else
+  44   1          temp &= ~0x10;
+  45   1        if(temp != temp_old)
+  46   1        {
+  47   2          P0 = ~temp;
+  48   2          P2 = P2 & 0x1f | 0xa0;//选中Y5C锁存器
+  49   2          P2 &= 0x1f;//关闭Y5c锁存器
+  50   2          temp_old = temp;
+  51   2        }
+  52   1      }
+
+
+C51 COMPILER V9.54   LED                                                                   02/12/2025 16:27:13 PAGE 2   
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    133    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =      6    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

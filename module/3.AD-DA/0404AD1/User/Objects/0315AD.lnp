@@ -1,0 +1,4 @@
+".\Objects\main.obj",
+".\Objects\iic.obj" 
+TO ".\Objects\0315AD" 
+PRINT(".\Listings\0315AD.m51") RAMSIZE(256) 

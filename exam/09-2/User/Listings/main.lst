@@ -1,0 +1,274 @@
+C51 COMPILER V9.54   MAIN                                                                  04/05/2025 16:45:54 PAGE 1   
+
+
+C51 COMPILER V9.54, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN .\Objects\main.obj
+COMPILER INVOKED BY: D:\Keil5\C51\BIN\C51.EXE main.c OPTIMIZE(8,SPEED) BROWSE INCDIR(..\Driver) DEBUG OBJECTEXTEND PRINT
+                    -(.\Listings\main.lst) TABS(2) OBJECT(.\Objects\main.obj)
+
+line level    source
+
+   1          /*头文件*/
+   2          #include <STC15F2K60S2.H>
+   3          #include <Init.h>
+   4          #include <Key.h>
+   5          #include <Seg.h>
+   6          #include <Led.h>
+   7          #include <iic.h>
+   8          
+   9          /*变量*/
+  10          unsigned char Key_Slow_Down;
+  11          unsigned int Seg_Slow_Down;
+  12          unsigned char Seg_Pos;
+  13          unsigned char Led_Pos;
+  14          unsigned char Key_Val,Key_Down,Key_Up,Key_Old;
+  15          unsigned char Seg_Buf[8] = {10,10,10,10,10,10,10,10};
+  16          unsigned char Seg_Point[8] = {0,0,0,0,0,0,0,0};
+  17          unsigned char ucLed[8] = {0,0,0,0,0,0,0,0};
+  18          unsigned char Seg_Disp_Mode;//0-熄灭 1-模式 2-流转时间
+  19          unsigned char Led_Mode;//0正 1负 2聚拢 3发散
+  20          unsigned int Timeflow = 400;
+  21          unsigned char Lightlevel;
+  22          bit Star_Flag;
+  23          unsigned int Timer_400Ms;
+  24          unsigned char PWM;
+  25          bit System_Flag;//0停止 1开始
+  26          unsigned int Tick;
+  27          
+  28          /*按键*/
+  29          void Key_Proc()
+  30          {
+  31   1        if(Key_Slow_Down) return;
+  32   1        Key_Slow_Down = 1;
+  33   1        
+  34   1        Key_Val = Key_Read();
+  35   1        Key_Down = Key_Val&(Key_Val^Key_Old);
+  36   1        Key_Up = ~Key_Val&(Key_Val^Key_Old);
+  37   1        Key_Old = Key_Val;
+  38   1        
+  39   1        if((Key_Old == 4)&&(Seg_Disp_Mode == 0))
+  40   1        {
+  41   2          Seg_Buf[6] = 0;
+  42   2          Seg_Buf[7] = Lightlevel + 1;
+  43   2        }
+  44   1        
+  45   1        switch(Key_Down)
+  46   1        {
+  47   2          case 6:
+  48   2            if(++Seg_Disp_Mode == 3)
+  49   2              Seg_Disp_Mode = 0;
+  50   2          break;
+  51   2            
+  52   2          case 5:
+  53   2            if(Seg_Disp_Mode == 1)
+  54   2            {
+C51 COMPILER V9.54   MAIN                                                                  04/05/2025 16:45:54 PAGE 2   
+
+  55   3              if(++Led_Mode == 4) Led_Mode = 0;
+  56   3            }
+  57   2            if(Seg_Disp_Mode == 2)
+  58   2            {
+  59   3              Timeflow += 100;
+  60   3              if(Timeflow == 1300)
+  61   3                Timeflow = 400;
+  62   3            }
+  63   2          break;
+  64   2            
+  65   2          case 4:
+  66   2            if(Seg_Disp_Mode == 1)
+  67   2            {
+  68   3                if(--Led_Mode == 255) Led_Mode = 0;
+  69   3            }
+  70   2            if(Seg_Disp_Mode == 2)
+  71   2            {
+  72   3              Timeflow -= 100;
+  73   3              if(Timeflow == 300)
+  74   3                Timeflow = 1200;
+  75   3            }
+  76   2          break;
+  77   2            
+  78   2          case 7:
+  79   2            System_Flag ^= 1;
+  80   2          break;
+  81   2        }
+  82   1      }
+  83          
+  84          /*信息*/
+  85          void Seg_Proc()
+  86          {
+  87   1        unsigned char i = 4;
+  88   1        if(Seg_Slow_Down) return;
+  89   1        Seg_Slow_Down = 1;
+  90   1        
+  91   1        Lightlevel = Ad_Read(0x43)/64;
+  92   1        
+  93   1        switch(Seg_Disp_Mode)
+  94   1        {
+  95   2          case 0://熄灭
+  96   2            Seg_Buf[0] = 10;
+  97   2            Seg_Buf[1] = 10;
+  98   2            Seg_Buf[2] = 10;
+  99   2            Seg_Buf[3] = 10;
+ 100   2            Seg_Buf[4] = 10;
+ 101   2            Seg_Buf[5] = 10;
+ 102   2            Seg_Buf[6] = 10;
+ 103   2            Seg_Buf[7] = 10;              
+ 104   2          break;
+ 105   2          
+ 106   2          case 1://模式设置
+ 107   2            Seg_Buf[0] = Star_Flag?0:10;
+ 108   2            Seg_Buf[1] = Star_Flag?(Led_Mode + 1):10;
+ 109   2            Seg_Buf[2] = Star_Flag?0:10;
+ 110   2            Seg_Buf[4] = Timeflow / 1000 % 10;
+ 111   2            Seg_Buf[5] = Timeflow / 100 % 10;
+ 112   2            Seg_Buf[6] = Timeflow / 10 % 10;
+ 113   2            Seg_Buf[7] = Timeflow / 1 % 10;           
+ 114   2          break;
+ 115   2            
+ 116   2          case 2://流转时间
+C51 COMPILER V9.54   MAIN                                                                  04/05/2025 16:45:54 PAGE 3   
+
+ 117   2            Seg_Buf[0] = 0;
+ 118   2            Seg_Buf[1] = Led_Mode + 1;
+ 119   2            Seg_Buf[2] = 0;
+ 120   2            Seg_Buf[4] = Star_Flag?10:Timeflow / 1000 % 10;
+ 121   2            Seg_Buf[5] = Star_Flag?10:Timeflow / 100 % 10;
+ 122   2            Seg_Buf[6] = Star_Flag?10:Timeflow / 10 % 10;
+ 123   2            Seg_Buf[7] = Star_Flag?10:Timeflow / 1 % 10;
+ 124   2          break;    
+ 125   2        }
+ 126   1            while(Seg_Buf[i] == 0)
+ 127   1            {
+ 128   2              Seg_Buf[i] = 10;
+ 129   2              if(++i == 7) i = 0;
+ 130   2            }     
+ 131   1      }
+ 132          
+ 133          /*其他*/
+ 134          void Led_Proc()
+ 135          {
+ 136   1        unsigned char i;
+ 137   1        if(System_Flag == 1)
+ 138   1        {
+ 139   2          if(Tick == Timeflow)
+ 140   2          {
+ 141   3            Tick = 0;
+ 142   3            switch(Led_Mode)
+ 143   3            {
+ 144   4              case 0:
+ 145   4                if(++Led_Pos == 8)
+ 146   4                {
+ 147   5                  Led_Pos = 7;
+ 148   5                  Led_Mode = 1;
+ 149   5                }         
+ 150   4              break;        
+ 151   4              
+ 152   4              case 1:
+ 153   4                if(--Led_Pos == 255)
+ 154   4                {
+ 155   5                  Led_Pos = 7;
+ 156   5                  Led_Mode = 2;
+ 157   5                }                   
+ 158   4              break;        
+ 159   4              
+ 160   4              case 2:
+ 161   4                Led_Pos += 9;
+ 162   4                if(Led_Pos > 34)
+ 163   4                {
+ 164   5                  Led_Pos = 34;
+ 165   5                  Led_Mode = 3;
+ 166   5                }         
+ 167   4              break;
+ 168   4              
+ 169   4              case 3:
+ 170   4                Led_Pos -= 9;
+ 171   4                if(Led_Pos > 200)
+ 172   4                {
+ 173   5                  Led_Pos = 0;
+ 174   5                  Led_Mode = 0;
+ 175   5                }         
+ 176   4              break;
+ 177   4            }
+ 178   3          }
+C51 COMPILER V9.54   MAIN                                                                  04/05/2025 16:45:54 PAGE 4   
+
+ 179   2        }
+ 180   1        if(Led_Mode < 2)//前两种模式
+ 181   1        {
+ 182   2          for(i=0;i<8;i++)
+ 183   2            ucLed[i] = (i == Led_Pos);  
+ 184   2        }
+ 185   1        else
+ 186   1        {
+ 187   2          for(i=0;i<8;i++)
+ 188   2            ucLed[i] = ((i == Led_Pos / 10) || (i == Led_Pos % 10));
+ 189   2        }
+ 190   1      }
+ 191          
+ 192          /*定时器0初始化*/
+ 193          void Timer0Init(void)   //1毫秒@12.000MHz
+ 194          {
+ 195   1        AUXR &= 0x7F;     //定时器时钟12T模式
+ 196   1        TMOD &= 0xF0;     //设置定时器模式
+ 197   1        TL0 = 0x18;       //设置定时初始值
+ 198   1        TH0 = 0xFC;       //设置定时初始值
+ 199   1        TF0 = 0;        //清除TF0标志
+ 200   1        TR0 = 1;        //定时器0开始计时
+ 201   1        ET0 = 1;
+ 202   1        EA = 1;
+ 203   1      }
+ 204          
+ 205          /*定时器0服务*/
+ 206          void Timer0Server() interrupt 1
+ 207          {
+ 208   1        if(++Seg_Slow_Down == 500) Seg_Slow_Down = 0;
+ 209   1        if(++Key_Slow_Down == 10) Key_Slow_Down = 0;
+ 210   1        if(++Seg_Pos == 8) Seg_Pos = 0;
+ 211   1        if(++PWM == 12) PWM = 0;
+ 212   1        
+ 213   1        Seg_Disp(Seg_Pos,Seg_Buf[Seg_Pos],Seg_Point[Seg_Pos]);
+ 214   1        Led_Disp(Seg_Pos,ucLed[Seg_Pos]);
+ 215   1        
+ 216   1        if(++Timer_400Ms == 400)
+ 217   1        {
+ 218   2          Timer_400Ms = 0;
+ 219   2          Star_Flag ^= 1;
+ 220   2        }
+ 221   1        
+ 222   1        if(PWM < (Lightlevel + 1)*4)
+ 223   1          Led_Disp(Seg_Pos,ucLed[Seg_Pos]);
+ 224   1        else
+ 225   1          Led_Disp(Seg_Pos,0);
+ 226   1        
+ 227   1        if(System_Flag == 1)
+ 228   1          Tick++;
+ 229   1      }
+ 230          
+ 231          /*Main*/
+ 232          void main()
+ 233          {
+ 234   1        Sys_Init();
+ 235   1        Timer0Init();
+ 236   1        while(1)
+ 237   1        {
+ 238   2          Key_Proc();
+ 239   2          Seg_Proc();
+ 240   2          Led_Proc();
+C51 COMPILER V9.54   MAIN                                                                  04/05/2025 16:45:54 PAGE 5   
+
+ 241   2        }
+ 242   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    954    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =     43       1
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =      2    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

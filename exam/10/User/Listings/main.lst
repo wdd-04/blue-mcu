@@ -1,0 +1,202 @@
+C51 COMPILER V9.54   MAIN                                                                  02/12/2025 16:51:41 PAGE 1   
+
+
+C51 COMPILER V9.54, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN .\Objects\main.obj
+COMPILER INVOKED BY: D:\Keil5\C51\BIN\C51.EXE main.c OPTIMIZE(8,SPEED) BROWSE INCDIR(..\Driver) DEBUG OBJECTEXTEND PRINT
+                    -(.\Listings\main.lst) TABS(2) OBJECT(.\Objects\main.obj)
+
+line level    source
+
+   1          /*头文件声明区*/
+   2          #include <STC15F2K60S2.H>
+   3          #include <Key.h>
+   4          #include <Seg.h>
+   5          #include <Init.h>
+   6          #include <Led.h>
+   7          #include <iic.h>
+   8          
+   9          /*变量声明区*/
+  10          unsigned char Key_Val,Key_Down,Key_Up,Key_Old;//按键专用变量
+  11          unsigned char Key_Slow_Down;//按键减速专用变量
+  12          unsigned char Seg_Buf[8] = {10,10,10,10,10,10,10,10};//数码管显示数据存放数组
+  13          unsigned char Seg_Point[8] = {0,0,0,0,0,0,0,0};//数码管小数点数据存放数组
+  14          unsigned char Seg_Pos;//数码管扫描专用变量
+  15          unsigned int Seg_Slow_Down;//数码管减速专用变量
+  16          unsigned char ucLed[8] = {0,0,0,0,0,0,0,0};//Led显示数据存放数组
+  17          unsigned int Timer_1000Ms;
+  18          unsigned int Freq;
+  19          bit Seg_Disp_Mode;//数码管显示模式 0-频率显示 1-电压显示
+  20          float V;
+  21          float V_Output;
+  22          bit Output_Mode;
+  23          bit Seg_Flag = 1;
+  24          bit Led_Flag = 1;
+  25          
+  26          /*按键处理函数*/
+  27          void Key_Proc()
+  28          {
+  29   1        if(Key_Slow_Down) return;
+  30   1        Key_Slow_Down = 1;//按键减速程序
+  31   1        
+  32   1        Key_Val = Key_Read();//实时读取键码值
+  33   1        Key_Down = Key_Val & (Key_Old ^ Key_Val);//捕捉按键下降沿
+  34   1        Key_Up = ~Key_Val & (Key_Old ^ Key_Val);//捕捉按键上升沿
+  35   1        Key_Old = Key_Val;//辅助扫描变量
+  36   1        
+  37   1        switch(Key_Down)
+  38   1        {
+  39   2          case 4:
+  40   2            Seg_Disp_Mode ^= 1;
+  41   2          break;
+  42   2          
+  43   2          case 5:
+  44   2            Output_Mode ^= 1;
+  45   2          break;
+  46   2          
+  47   2          case 6:
+  48   2            Led_Flag ^= 1;
+  49   2          break;
+  50   2          
+  51   2          case 7:
+  52   2            Seg_Flag ^= 1;
+  53   2          break;
+  54   2        }
+C51 COMPILER V9.54   MAIN                                                                  02/12/2025 16:51:41 PAGE 2   
+
+  55   1      }
+  56          
+  57          /*信息处理函数*/
+  58          void Seg_Proc()
+  59          {
+  60   1        unsigned char i = 3;
+  61   1        if(Seg_Slow_Down) return;
+  62   1        Seg_Slow_Down = 1;//数码管减速程序
+  63   1        
+  64   1        V = Ad_Read(0x43)/51.0;
+  65   1        if(Output_Mode == 0)
+  66   1          V_Output = 2;
+  67   1        else
+  68   1          V_Output = V;
+  69   1        
+  70   1        Seg_Point[5] = Seg_Disp_Mode;
+  71   1        if(Seg_Disp_Mode == 0)//频率显示
+  72   1        {
+  73   2          Seg_Buf[0] = 11;
+  74   2          Seg_Buf[3] = Freq / 10000 % 10;
+  75   2          Seg_Buf[4] = Freq / 1000 % 10;
+  76   2          Seg_Buf[5] = Freq / 100 % 10;
+  77   2          Seg_Buf[6] = Freq / 10 % 10;
+  78   2          Seg_Buf[7] = Freq / 1 % 10;
+  79   2          while(Seg_Buf[i] == 0)
+  80   2          {
+  81   3            Seg_Buf[i] = 10;
+  82   3            if(++i == 7) break;
+  83   3          }
+  84   2        }
+  85   1        else
+  86   1        {
+  87   2          Seg_Buf[0] = 12;
+  88   2          Seg_Buf[3] = 10;
+  89   2          Seg_Buf[4] = 10;  
+  90   2          Seg_Buf[5] = (unsigned char)V;
+  91   2          Seg_Buf[6] = (unsigned int)(V*100) / 10 % 10;
+  92   2          Seg_Buf[7] = (unsigned int)(V*100) / 1 % 10;
+  93   2        }
+  94   1      }
+  95          
+  96          /*其他显示函数*/
+  97          void Led_Proc()
+  98          {
+  99   1        unsigned char i;
+ 100   1        Da_Write(V_Output*51);
+ 101   1        for(i=0;i<2;i++)
+ 102   1          ucLed[i] = (i == Seg_Disp_Mode);
+ 103   1        ucLed[2] = ((V >= 1.5 && V < 2.5)||(V >= 3.5));
+ 104   1        ucLed[3] = ((Freq >= 1000 && Freq < 5000)||(Freq >= 10000));
+ 105   1        ucLed[5] = Output_Mode;
+ 106   1      }
+ 107          
+ 108          /*定时器0计数*/
+ 109          void Timer0Init(void)   //1毫秒@12.000MHz
+ 110          {
+ 111   1        AUXR &= 0x7F;     //定时器时钟12T模式
+ 112   1        TMOD &= 0xF0;     //设置定时器模式
+ 113   1        TMOD |= 0x05;
+ 114   1        TL0 = 0;        //设置定时初始值
+ 115   1        TH0 = 0;        //设置定时初始值
+ 116   1        TF0 = 0;        //清除TF0标志
+C51 COMPILER V9.54   MAIN                                                                  02/12/2025 16:51:41 PAGE 3   
+
+ 117   1        TR0 = 1;        //定时器0开始计数
+ 118   1      }
+ 119          
+ 120          /*定时器1中断初始化函数*/
+ 121          void Timer1Init(void)   //1毫秒@12.000MHz
+ 122          {
+ 123   1        AUXR &= 0xBF;     //定时器时钟12T模式
+ 124   1        TMOD &= 0x0F;     //设置定时器模式
+ 125   1        TL1 = 0x18;       //设置定时初始值
+ 126   1        TH1 = 0xFC;       //设置定时初始值
+ 127   1        TF1 = 0;        //清除TF1标志
+ 128   1        TR1 = 1;        //定时器1开始计时
+ 129   1        ET1 = 1;
+ 130   1        EA = 1;
+ 131   1      }
+ 132          
+ 133          
+ 134          /*定时器1中断服务函数*/
+ 135          void Timer1Server() interrupt 3
+ 136          {
+ 137   1        if(++Key_Slow_Down == 10) Key_Slow_Down = 0;//按键减速专用
+ 138   1        if(++Seg_Slow_Down == 500) Seg_Slow_Down = 0;//数码管减速专用
+ 139   1        if(++Seg_Pos == 8) Seg_Pos = 0;//数码管显示专用
+ 140   1        
+ 141   1        if(Seg_Flag == 1)
+ 142   1          Seg_Disp(Seg_Pos,Seg_Buf[Seg_Pos],Seg_Point[Seg_Pos]);
+ 143   1        else
+ 144   1          Seg_Disp(Seg_Pos,10,0);   
+ 145   1      
+ 146   1        if(Led_Flag == 1) 
+ 147   1          Led_Disp(Seg_Pos,ucLed[Seg_Pos]);
+ 148   1        else
+ 149   1          Led_Disp(Seg_Pos,0);
+ 150   1        
+ 151   1        if(++Timer_1000Ms == 1000)//获取频率值
+ 152   1        {
+ 153   2          Timer_1000Ms = 0;
+ 154   2          Freq = TH0 << 8 | TL0;
+ 155   2          TH0 = 0;
+ 156   2          TL0 = 0;
+ 157   2        } 
+ 158   1      }
+ 159          
+ 160          /*Main*/
+ 161          void main()
+ 162          {
+ 163   1        System_Init();
+ 164   1        Timer0Init();
+ 165   1        Timer1Init();
+ 166   1        while(1)
+ 167   1        {
+ 168   2          Key_Proc();
+ 169   2          Seg_Proc();
+ 170   2          Led_Proc();
+ 171   2        }
+ 172   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    762    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+C51 COMPILER V9.54   MAIN                                                                  02/12/2025 16:51:41 PAGE 4   
+
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =     44       1
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =      4    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

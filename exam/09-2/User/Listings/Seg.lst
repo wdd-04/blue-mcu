@@ -1,0 +1,58 @@
+C51 COMPILER V9.54   SEG                                                                   04/05/2025 14:16:42 PAGE 1   
+
+
+C51 COMPILER V9.54, COMPILATION OF MODULE SEG
+OBJECT MODULE PLACED IN .\Objects\Seg.obj
+COMPILER INVOKED BY: D:\Keil5\C51\BIN\C51.EXE ..\Driver\Seg.c OPTIMIZE(8,SPEED) BROWSE INCDIR(..\Driver) DEBUG OBJECTEXT
+                    -END PRINT(.\Listings\Seg.lst) TABS(2) OBJECT(.\Objects\Seg.obj)
+
+line level    source
+
+   1          #include <Seg.h>
+   2          
+   3          unsigned char Seg_dula[] = {
+   4          0xc0, //0
+   5          0xf9, //1
+   6          0xa4, //2
+   7          0xb0, //3
+   8          0x99, //4
+   9          0x92, //5
+  10          0x82, //6
+  11          0xf8, //7
+  12          0x80, //8
+  13          0x90, //9
+  14          0xff //无  
+  15          };
+  16          unsigned char Seg_wela[] = {0x01,0x02,0x04,0x08,0x10,0x20,0x40,0x80};
+  17          
+  18          void Seg_Disp(unsigned char wela,dula,point)
+  19          {
+  20   1        P0 = 0xff;
+  21   1        P2 = P2 & 0x1f | 0xe0;
+  22   1        P2 &= 0x1f;
+  23   1      
+  24   1        P0 = Seg_wela[wela];
+  25   1        P2 = P2 & 0x1f | 0xc0;
+  26   1        P2 &= 0x1f;
+  27   1        
+  28   1        if(point)
+  29   1          P0 = Seg_dula[dula] & 0x7f;
+  30   1        else
+  31   1          P0 = Seg_dula[dula];
+  32   1        P2 = P2 & 0x1f | 0xe0;
+  33   1        P2 &= 0x1f;
+  34   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =     66    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =     19    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

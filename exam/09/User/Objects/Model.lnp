@@ -1,0 +1,8 @@
+".\Objects\main.obj",
+".\Objects\Key.obj",
+".\Objects\Seg.obj",
+".\Objects\Init.obj",
+".\Objects\Led.obj",
+".\Objects\iic.obj" 
+TO ".\Objects\Model" 
+PRINT(".\Listings\Model.m51") RAMSIZE(256) 

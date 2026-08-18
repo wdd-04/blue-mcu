@@ -1,0 +1,36 @@
+C51 COMPILER V9.54   INIT                                                                  02/23/2025 19:36:19 PAGE 1   
+
+
+C51 COMPILER V9.54, COMPILATION OF MODULE INIT
+OBJECT MODULE PLACED IN .\Objects\Init.obj
+COMPILER INVOKED BY: D:\Keil5\C51\BIN\C51.EXE ..\Driver\Init.c OPTIMIZE(8,SPEED) BROWSE INCDIR(..\Driver) DEBUG OBJECTEX
+                    -TEND PRINT(.\Listings\Init.lst) TABS(2) OBJECT(.\Objects\Init.obj)
+
+line level    source
+
+   1          #include <Init.h>
+   2          
+   3          void System_Init()//关闭外设子函数
+   4          {
+   5   1        P0 = 0xff;//关闭Led
+   6   1        P2 = P2 & 0x1f | 0x80;//选中Y4C锁存器
+   7   1        P2 &= 0x1f;//关闭Y4c锁存器
+   8   1        
+   9   1        P0 = 0x00;//关闭继电器、蜂鸣器
+  10   1        P2 = P2 & 0x1f | 0xa0;//选中Y5C锁存器
+  11   1        P2 &= 0x1f;//关闭Y5c锁存器
+  12   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =     29    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

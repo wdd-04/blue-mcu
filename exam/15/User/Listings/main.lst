@@ -1,0 +1,351 @@
+C51 COMPILER V9.54   MAIN                                                                  03/09/2025 12:05:51 PAGE 1   
+
+
+C51 COMPILER V9.54, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN .\Objects\main.obj
+COMPILER INVOKED BY: D:\Keil5\C51\BIN\C51.EXE main.c OPTIMIZE(8,SPEED) BROWSE INCDIR(..\Driver) DEBUG OBJECTEXTEND PRINT
+                    -(.\Listings\main.lst) TABS(2) OBJECT(.\Objects\main.obj)
+
+line level    source
+
+   1          /*头文件声明区*/
+   2          #include <STC15F2K60S2.H>
+   3          #include <Key.h>
+   4          #include <Seg.h>
+   5          #include <Init.h>
+   6          #include <Led.h>
+   7          #include <ds1302.h>
+   8          #include <iic.h>
+   9          
+  10          /*变量声明区*/
+  11          unsigned char Key_Val,Key_Down,Key_Up,Key_Old;//按键专用变量
+  12          unsigned char Key_Slow_Down;//按键减速专用变量
+  13          unsigned char Seg_Buf[8] = {10,10,10,10,10,10,10,10};//数码管显示数据存放数组
+  14          unsigned char Seg_Point[8] = {0,0,0,0,0,0,0,0};//数码管小数点数据存放数组
+  15          unsigned char Seg_Pos;//数码管扫描专用变量
+  16          unsigned int Seg_Slow_Down;//数码管减速专用变量
+  17          unsigned char ucLed[8] = {0,0,0,0,0,0,0,0};//Led显示数据存放数组
+  18          unsigned int Timer_1000Ms;
+  19          unsigned int Freq = 0;
+  20          int Freq_Output = 0;
+  21          unsigned int Freq_Max;
+  22          unsigned int  PF = 2000;//超限参数
+  23          int Correct = 0;//校准值参数
+  24          unsigned char Seg_Disp_Mode;
+  25          bit Para_Mode = 0;
+  26          bit Back_Mode = 0;
+  27          unsigned char ucRtc[3] = {0x13,0x30,0x55};
+  28          unsigned char ucRtc_Freq[3];
+  29          float V;
+  30          unsigned char Timer_200Ms;
+  31          bit Star_Flag;
+  32          
+  33          /*按键处理函数*/
+  34          void Key_Proc()
+  35          {
+  36   1        if(Key_Slow_Down) return;
+  37   1        Key_Slow_Down = 1;//按键减速程序
+  38   1        
+  39   1        Key_Val = Key_Read();//实时读取键码值
+  40   1        Key_Down = Key_Val & (Key_Old ^ Key_Val);//捕捉按键下降沿
+  41   1        Key_Up = ~Key_Val & (Key_Old ^ Key_Val);//捕捉按键上升沿
+  42   1        Key_Old = Key_Val;//辅助扫描变量
+  43   1        
+  44   1        switch(Key_Down)
+  45   1        {
+  46   2          case 4:
+  47   2            if(++Seg_Disp_Mode == 4) Seg_Disp_Mode = 0;
+  48   2          break;
+  49   2          
+  50   2          case 5:
+  51   2            if(Seg_Disp_Mode == 1)
+  52   2              Para_Mode ^= 1;
+  53   2            if(Seg_Disp_Mode == 3)
+  54   2              Back_Mode ^= 1;
+C51 COMPILER V9.54   MAIN                                                                  03/09/2025 12:05:51 PAGE 2   
+
+  55   2          break;
+  56   2            
+  57   2          case 8:
+  58   2            if(Seg_Disp_Mode == 1)
+  59   2            {
+  60   3              if(Para_Mode == 0)
+  61   3              {
+  62   4                PF += 1000;
+  63   4                if(PF == 10000) PF = 9000;
+  64   4              }
+  65   3              if(Para_Mode == 1)
+  66   3              {
+  67   4                Correct += 100;
+  68   4                if(Correct == 1000) Correct = 900;
+  69   4              }       
+  70   3            }
+  71   2          break;
+  72   2            
+  73   2          case 9:
+  74   2            if(Seg_Disp_Mode == 1)
+  75   2            {
+  76   3              if(Para_Mode == 0)
+  77   3              {
+  78   4                PF -= 1000;
+  79   4                if(PF == 0) PF = 1000;
+  80   4              }
+  81   3              if(Para_Mode == 1)
+  82   3              {
+  83   4                Correct -= 100;
+  84   4                if(Correct == -1000) Correct = -900;
+  85   4              }       
+  86   3            }
+  87   2          break;
+  88   2        }
+  89   1      }
+  90          
+  91          /*信息处理函数*/
+  92          void Seg_Proc()
+  93          {
+  94   1        unsigned char i = 3;
+  95   1        unsigned char j = 4;
+  96   1        unsigned char k = 5;
+  97   1        if(Seg_Slow_Down) return;
+  98   1        Seg_Slow_Down = 1;//数码管减速程序
+  99   1        
+ 100   1        Freq_Output = Freq + Correct;
+ 101   1        Read_Rtc(ucRtc);
+ 102   1        if(Freq_Max <= Freq_Output) 
+ 103   1        {
+ 104   2          Freq_Max = Freq_Output;   
+ 105   2          Read_Rtc(ucRtc_Freq);
+ 106   2        }
+ 107   1        switch(Seg_Disp_Mode)
+ 108   1        {
+ 109   2          case 0://频率界面
+ 110   2            if(Freq_Output >= 0)
+ 111   2            {
+ 112   3              Seg_Buf[0] = 11;
+ 113   3              Seg_Buf[1] = 10;
+ 114   3              Seg_Buf[2] = 10;
+ 115   3              Seg_Buf[3] = Freq_Output / 10000 % 10;
+ 116   3              Seg_Buf[4] = Freq_Output / 1000 % 10;
+C51 COMPILER V9.54   MAIN                                                                  03/09/2025 12:05:51 PAGE 3   
+
+ 117   3              Seg_Buf[5] = Freq_Output / 100 % 10;
+ 118   3              Seg_Buf[6] = Freq_Output / 10 % 10;
+ 119   3              Seg_Buf[7] = Freq_Output / 1 % 10;
+ 120   3            }
+ 121   2            else
+ 122   2            {
+ 123   3              Seg_Buf[0] = 11;
+ 124   3              Seg_Buf[1] = 10;
+ 125   3              Seg_Buf[2] = 10;
+ 126   3              Seg_Buf[3] = 10;
+ 127   3              Seg_Buf[4] = 10;
+ 128   3              Seg_Buf[5] = 10;
+ 129   3              Seg_Buf[6] = 17;
+ 130   3              Seg_Buf[7] = 17;  
+ 131   3              Da_Write(0);        
+ 132   3            }
+ 133   2            while(Seg_Buf[i] == 0)        
+ 134   2            {
+ 135   3              Seg_Buf[i] = 10;
+ 136   3              if(++i == 7) break;
+ 137   3            }
+ 138   2            Para_Mode = 0;
+ 139   2          break;
+ 140   2          
+ 141   2          case 1://参数界面
+ 142   2            if(Para_Mode == 0)//超极限参数界面
+ 143   2            {
+ 144   3              Seg_Buf[0] = 12;
+ 145   3              Seg_Buf[1] = 1;
+ 146   3              Seg_Buf[2] = 10;
+ 147   3              Seg_Buf[3] = 10;
+ 148   3              Seg_Buf[4] = PF / 1000 % 10;
+ 149   3              Seg_Buf[5] = PF / 100 % 10;
+ 150   3              Seg_Buf[6] = PF / 10 % 10;
+ 151   3              Seg_Buf[7] = PF / 1 % 10;   
+ 152   3              while(Seg_Buf[j] == 0)
+ 153   3              {
+ 154   4                Seg_Buf[j] = 10;
+ 155   4                if(++j == 7) break;
+ 156   4              }           
+ 157   3            }
+ 158   2            else//校准值参数界面
+ 159   2            {
+ 160   3              if(Correct >= 0)
+ 161   3              {
+ 162   4                Seg_Buf[0] = 12;
+ 163   4                Seg_Buf[1] = 2;
+ 164   4                Seg_Buf[2] = 10;
+ 165   4                Seg_Buf[3] = 10;
+ 166   4                Seg_Buf[4] = 10;
+ 167   4                Seg_Buf[5] = Correct / 100 % 10;
+ 168   4                Seg_Buf[6] = Correct / 10 % 10;
+ 169   4                Seg_Buf[7] = Correct / 1 % 10;        
+ 170   4              }
+ 171   3              else
+ 172   3              {
+ 173   4                Seg_Buf[0] = 12;
+ 174   4                Seg_Buf[1] = 2;
+ 175   4                Seg_Buf[2] = 10;
+ 176   4                Seg_Buf[3] = 10;
+ 177   4                Seg_Buf[4] = 16;
+ 178   4                Seg_Buf[5] = Correct*(-1) / 100 % 10;
+C51 COMPILER V9.54   MAIN                                                                  03/09/2025 12:05:51 PAGE 4   
+
+ 179   4                Seg_Buf[6] = Correct*(-1) / 10 % 10;
+ 180   4                Seg_Buf[7] = Correct*(-1) / 1 % 10;               
+ 181   4              }
+ 182   3              while(Seg_Buf[k] == 0)
+ 183   3              {
+ 184   4                Seg_Buf[k] = 10;
+ 185   4                if(++k == 7) break;
+ 186   4              }           
+ 187   3            }
+ 188   2          break;
+ 189   2            
+ 190   2          case 2://时间界面
+ 191   2            Seg_Buf[0] = ucRtc[0] / 16 % 16;
+ 192   2            Seg_Buf[1] = ucRtc[0] / 1 % 16;
+ 193   2            Seg_Buf[2] = 16;
+ 194   2            Seg_Buf[3] = ucRtc[1] / 16 % 16;
+ 195   2            Seg_Buf[4] = ucRtc[1] / 1 % 16;
+ 196   2            Seg_Buf[5] = 16;
+ 197   2            Seg_Buf[6] = ucRtc[2] / 16 % 16;
+ 198   2            Seg_Buf[7] = ucRtc[2] / 1 % 16;
+ 199   2            Back_Mode = 0;
+ 200   2          break;
+ 201   2          
+ 202   2          case 3:
+ 203   2            if(Back_Mode == 0)//频率回显界面
+ 204   2            {
+ 205   3              Seg_Buf[0] = 13;
+ 206   3              Seg_Buf[1] = 11;
+ 207   3              Seg_Buf[2] = 10;
+ 208   3              Seg_Buf[3] = Freq_Max / 10000 % 10;
+ 209   3              Seg_Buf[4] = Freq_Max / 1000 % 10;
+ 210   3              Seg_Buf[5] = Freq_Max / 100 % 10;
+ 211   3              Seg_Buf[6] = Freq_Max / 10 % 10;
+ 212   3              Seg_Buf[7] = Freq_Max / 1 % 10;
+ 213   3              while(Seg_Buf[i] == 0)
+ 214   3              {
+ 215   4                Seg_Buf[i] = 10;
+ 216   4                if(++i == 7) break;
+ 217   4              }
+ 218   3            }
+ 219   2            else//时间回显界面
+ 220   2            {
+ 221   3              Seg_Buf[0] = 13;
+ 222   3              Seg_Buf[1] = 14;
+ 223   3              Seg_Buf[2] = ucRtc_Freq[0] / 16 % 16;
+ 224   3              Seg_Buf[3] = ucRtc_Freq[0] / 1 % 16;
+ 225   3              Seg_Buf[4] = ucRtc_Freq[1] / 16 % 16;
+ 226   3              Seg_Buf[5] = ucRtc_Freq[1] / 1 % 16;
+ 227   3              Seg_Buf[6] = ucRtc_Freq[2] / 16 % 16;
+ 228   3              Seg_Buf[7] = ucRtc_Freq[2] / 1 % 16;  
+ 229   3            }
+ 230   2          break;
+ 231   2        }
+ 232   1      }
+ 233          
+ 234          /*其他显示函数*/
+ 235          void Led_Proc()
+ 236          {
+ 237   1        if(Freq_Output <= 500) V = 1;
+ 238   1        if(Freq_Output >= PF) V = 5;
+ 239   1        if((Freq_Output > 500) && (Freq_Output < PF))
+ 240   1        {
+C51 COMPILER V9.54   MAIN                                                                  03/09/2025 12:05:51 PAGE 5   
+
+ 241   2          V = (4 / (PF-500))*(Freq_Output - 500) + 1;
+ 242   2        }
+ 243   1        Da_Write(V*51.0);
+ 244   1        
+ 245   1        ucLed[0] = (Seg_Disp_Mode == 0) & Star_Flag;
+ 246   1        if(Freq_Output > PF)
+ 247   1          ucLed[1] = Star_Flag;
+ 248   1        else
+ 249   1          ucLed[1] = 0;
+ 250   1        if(Freq_Output < 0)
+ 251   1          ucLed[1] = 1;
+ 252   1      }
+ 253          
+ 254          void Timer0Init(void)   //1毫秒@12.000MHz
+ 255          {
+ 256   1        AUXR &= 0x7F;     //定时器时钟12T模式
+ 257   1        TMOD &= 0xF0;     //设置定时器模式
+ 258   1        TMOD |= 0x05;
+ 259   1        TL0 = 0x00;       //设置定时初始值
+ 260   1        TH0 = 0x00;       //设置定时初始值
+ 261   1        TF0 = 0;        //清除TF0标志
+ 262   1        TR0 = 1;        //定时器0开始计数
+ 263   1      }
+ 264          
+ 265          /*定时器1中断初始化函数*/
+ 266          void Timer1Init(void)   //1毫秒@12.000MHz
+ 267          {
+ 268   1        AUXR &= 0xBF;     //定时器时钟12T模式
+ 269   1        TMOD &= 0x0F;     //设置定时器模式
+ 270   1        TL1 = 0x18;       //设置定时初始值
+ 271   1        TH1 = 0xFC;       //设置定时初始值
+ 272   1        TF1 = 0;        //清除TF1标志
+ 273   1        TR1 = 1;        //定时器1开始计时
+ 274   1        ET1 = 1;
+ 275   1        EA = 1;
+ 276   1      }
+ 277          
+ 278          
+ 279          /*定时器1中断服务函数*/
+ 280          void Timer1Server() interrupt 3
+ 281          {
+ 282   1        if(++Key_Slow_Down == 10) Key_Slow_Down = 0;//按键减速专用
+ 283   1        if(++Seg_Slow_Down == 500) Seg_Slow_Down = 0;//数码管减速专用
+ 284   1        if(++Seg_Pos == 8) Seg_Pos = 0;//数码管显示专用
+ 285   1        Seg_Disp(Seg_Pos,Seg_Buf[Seg_Pos],Seg_Point[Seg_Pos]);
+ 286   1        Led_Disp(Seg_Pos,ucLed[Seg_Pos]);
+ 287   1        
+ 288   1        if(++Timer_1000Ms == 1000)//获取频率值
+ 289   1        {
+ 290   2          Timer_1000Ms = 0;
+ 291   2          Freq = TH0 << 8 | TL0;
+ 292   2          TH0 = 0;
+ 293   2          TL0 = 0;
+ 294   2        } 
+ 295   1        
+ 296   1        if(++Timer_200Ms == 200)
+ 297   1        {
+ 298   2          Timer_200Ms = 0;
+ 299   2          Star_Flag ^= 1;
+ 300   2        }
+ 301   1      }
+ 302          
+C51 COMPILER V9.54   MAIN                                                                  03/09/2025 12:05:51 PAGE 6   
+
+ 303          /*Main*/
+ 304          void main()
+ 305          {
+ 306   1        Set_Rtc(ucRtc);
+ 307   1        Read_Rtc(ucRtc);
+ 308   1        System_Init();
+ 309   1        Timer0Init();
+ 310   1        Timer1Init();
+ 311   1        while(1)
+ 312   1        {
+ 313   2          Key_Proc();
+ 314   2          Seg_Proc();
+ 315   2          Led_Proc();
+ 316   2        }
+ 317   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   1454    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =     56       3
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =      3    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

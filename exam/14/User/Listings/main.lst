@@ -1,0 +1,457 @@
+C51 COMPILER V9.54   MAIN                                                                  03/04/2025 14:26:33 PAGE 1   
+
+
+C51 COMPILER V9.54, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN .\Objects\main.obj
+COMPILER INVOKED BY: D:\Keil5\C51\BIN\C51.EXE main.c OPTIMIZE(8,SPEED) BROWSE INCDIR(..\Driver) DEBUG OBJECTEXTEND PRINT
+                    -(.\Listings\main.lst) TABS(2) OBJECT(.\Objects\main.obj)
+
+line level    source
+
+   1          /*头文件声明区*/
+   2          #include <STC15F2K60S2.H>
+   3          #include <Key.h>
+   4          #include <Seg.h>
+   5          #include <Init.h>
+   6          #include <Led.h>
+   7          #include <onewire.h>
+   8          #include <ds1302.h>
+   9          #include <iic.h>
+  10          
+  11          /*变量声明区*/
+  12          unsigned char Key_Val,Key_Down,Key_Up,Key_Old;//按键专用变量
+  13          unsigned char Key_Slow_Down;//按键减速专用变量
+  14          unsigned char Seg_Buf[8] = {10,10,10,10,10,10,10,10};//数码管显示数据存放数组
+  15          unsigned char Seg_Point[8] = {0,0,0,0,0,0,0,0};//数码管小数点数据存放数组
+  16          unsigned char Seg_Pos;//数码管扫描专用变量
+  17          unsigned int xdata Seg_Slow_Down;//数码管减速专用变量
+  18          unsigned char ucLed[8] = {0,0,0,0,0,0,0,0};//Led显示数据存放数组
+  19          unsigned int xdata Timer_1000Ms;
+  20          unsigned int xdata Freq;
+  21          unsigned char Seg_Disp_Mode;//0-时间界面 1-回显界面 2-参数界面 3-温湿度界面
+  22          unsigned char Seg_Disp_Mode_Old;
+  23          unsigned char Back_Show_Mode;//0-温度 1-湿度 2-时间
+  24          unsigned char time[3] = {0x23,0x59,0x55};
+  25          float T;
+  26          unsigned char T_Para = 30;
+  27          float T_max;
+  28          float xdata T_aver;
+  29          float xdata T_data[10];
+  30          float Wet;
+  31          float Wet_max;
+  32          float xdata Wet_aver;
+  33          float xdata Wet_data[10];
+  34          bit Wet_Valid;//0无效 1有效
+  35          bit Trigger_Flag;//0不允许触发 1允许触发
+  36          unsigned char Trigger_Count = 0;
+  37          unsigned char V;
+  38          bit V_Flag = 1;
+  39          unsigned int xdata Timer_2s;//按键时间
+  40          bit Key_Flag;//按键使能
+  41          bit L4_Star;
+  42          unsigned char xdata Timer_100Ms;
+  43          float sum_T;
+  44          float sum_Wet;
+  45          unsigned char i;
+  46          
+  47          /*按键处理函数*/
+  48          void Key_Proc()
+  49          {
+  50   1        if(Key_Slow_Down) return;
+  51   1        Key_Slow_Down = 1;//按键减速程序
+  52   1        
+  53   1        Key_Val = Key_Read();//实时读取键码值
+  54   1        Key_Down = Key_Val & (Key_Old ^ Key_Val);//捕捉按键下降沿
+C51 COMPILER V9.54   MAIN                                                                  03/04/2025 14:26:33 PAGE 2   
+
+  55   1        Key_Up = ~Key_Val & (Key_Old ^ Key_Val);//捕捉按键上升沿
+  56   1        Key_Old = Key_Val;//辅助扫描变量
+  57   1      
+  58   1        
+  59   1        if((Seg_Disp_Mode == 1)&&(Back_Show_Mode == 2))
+  60   1        {
+  61   2          if(Key_Down == 9)
+  62   2            Key_Flag = 1;//开始计时
+  63   2        }
+  64   1        if(Timer_2s > 2000)
+  65   1        {
+  66   2          if(Key_Up == 9)
+  67   2          {
+  68   3            Trigger_Count = 0;
+  69   3            Key_Flag = Timer_2s = 0;
+  70   3            T = T_max = T_aver = Wet = Wet_max = Wet_aver = 0;
+  71   3          }
+  72   2        }
+  73   1        
+  74   1        switch(Key_Down)
+  75   1        {
+  76   2          case 4:
+  77   2            if(++Seg_Disp_Mode == 3)
+  78   2              Seg_Disp_Mode = 0;        
+  79   2            Seg_Disp_Mode_Old = Seg_Disp_Mode;
+  80   2          break;
+  81   2            
+  82   2          case 5:
+  83   2            if(Seg_Disp_Mode == 1)
+  84   2            {
+  85   3              if(++Back_Show_Mode == 3)
+  86   3                Back_Show_Mode = 0;     
+  87   3            }
+  88   2          break;
+  89   2            
+  90   2          case 8:
+  91   2            if(Seg_Disp_Mode == 2)
+  92   2            {
+  93   3              if(++T_Para == 99)
+  94   3                T_Para = 0;     
+  95   3            }
+  96   2          break;
+  97   2            
+  98   2          case 9:
+  99   2            if(Seg_Disp_Mode == 2)
+ 100   2            {
+ 101   3              if(--T_Para == 255)
+ 102   3                T_Para = 99;      
+ 103   3            }
+ 104   2          break;
+ 105   2        }
+ 106   1        
+ 107   1      }
+ 108          
+ 109          void Delay3000ms(void)  //@12.000MHz
+ 110          {
+ 111   1        unsigned char data i, j, k;
+ 112   1        i = 137;
+ 113   1        j = 203;
+ 114   1        k = 232;
+ 115   1        do
+ 116   1        {
+C51 COMPILER V9.54   MAIN                                                                  03/04/2025 14:26:33 PAGE 3   
+
+ 117   2          do
+ 118   2          {
+ 119   3            while (--k);
+ 120   3          } while (--j);
+ 121   2        } while (--i);
+ 122   1      }
+ 123          
+ 124          /*信息处理函数*/
+ 125          void Seg_Proc()
+ 126          {
+ 127   1        if(Seg_Slow_Down) return;
+ 128   1        Seg_Slow_Down = 1;//数码管减速程序
+ 129   1        
+ 130   1        /*信息获取区域*/
+ 131   1        Read_Rtc(time);
+ 132   1        V = Ad_Read(0x01);
+ 133   1      
+ 134   1        
+ 135   1        if(V > 100)
+ 136   1        {
+ 137   2          if(T_max <= T) T_max = T;
+ 138   2          if(Wet_max <= Wet) Wet_max = Wet;
+ 139   2          Seg_Disp_Mode = Seg_Disp_Mode_Old;
+ 140   2          V_Flag = 1;
+ 141   2        }
+ 142   1        else if((V < 100)&&(V_Flag == 1))
+ 143   1        {
+ 144   2          T = read_t();
+ 145   2          if(T_max <= T) T_max = T;
+ 146   2          if(Wet_max <= Wet) Wet_max = Wet;
+ 147   2      
+ 148   2          if(Trigger_Count == 0)
+ 149   2          {
+ 150   3            T_aver = T;
+ 151   3            Wet_aver = Wet; 
+ 152   3          }
+ 153   2          
+ 154   2          if(Freq <= 200)
+ 155   2          {
+ 156   3            Wet_Valid = 0;
+ 157   3            Wet = 10;
+ 158   3          }
+ 159   2          else if(Freq >= 2000)
+ 160   2          {
+ 161   3            Wet_Valid = 0;
+ 162   3            Wet = 90;   
+ 163   3          }
+ 164   2          else
+ 165   2          {
+ 166   3            Wet_Valid = 1;
+ 167   3            Wet = (80.0/1800.0)*(Freq - 200) + 10;
+ 168   3          }
+ 169   2      
+ 170   2          V_Flag = 0;
+ 171   2          T_data[Trigger_Count] = T;
+ 172   2          Wet_data[Trigger_Count] = Wet;
+ 173   2      
+ 174   2          Trigger_Count++;
+ 175   2          Seg_Disp_Mode = 3;
+ 176   2      
+ 177   2          sum_T = 0.0;
+ 178   2          sum_Wet = 0.0;
+C51 COMPILER V9.54   MAIN                                                                  03/04/2025 14:26:33 PAGE 4   
+
+ 179   2          for(i=0;i<Trigger_Count;i++)
+ 180   2          {
+ 181   3            sum_T += T_data[i];
+ 182   3            sum_Wet += Wet_data[i];   
+ 183   3            T_aver = sum_T / (i+1);
+ 184   3            Wet_aver = sum_Wet / (i+1);   
+ 185   3          }
+ 186   2      
+ 187   2      //    T_aver[Trigger_Count] = ((T_aver[Trigger_Count-1])*(Trigger_Count) + T_data[Trigger_Count]) / (Trigger
+             -_Count);
+ 188   2      //    Wet_aver[Trigger_Count] = ((Wet_aver[Trigger_Count-1])*(Trigger_Count) + Wet_data[Trigger_Count]) / (T
+             -rigger_Count+1);    
+ 189   2        }
+ 190   1        
+ 191   1        
+ 192   1        
+ 193   1        
+ 194   1        /*信息处理区域*/
+ 195   1        switch(Seg_Disp_Mode)
+ 196   1        {
+ 197   2          case 0://时间界面
+ 198   2            ucLed[2] = 0;
+ 199   2            ucLed[0] = 1;
+ 200   2            Seg_Buf[0] = time[0] / 16 % 16;
+ 201   2            Seg_Buf[1] = time[0] / 1 % 16;
+ 202   2            Seg_Buf[2] = 11;
+ 203   2            Seg_Buf[3] = time[1] / 16 % 16;
+ 204   2            Seg_Buf[4] = time[1] / 1 % 16;
+ 205   2            Seg_Buf[5] = 11;    
+ 206   2            Seg_Buf[6] = time[2] / 16 % 16;
+ 207   2            Seg_Buf[7] = time[2] / 1 % 16;
+ 208   2          break;
+ 209   2          
+ 210   2          case 1://回显界面
+ 211   2            ucLed[2] = 0;
+ 212   2            ucLed[0] = 0;
+ 213   2            ucLed[1] = 1;
+ 214   2            switch(Back_Show_Mode)
+ 215   2            {
+ 216   3              case 0://温度
+ 217   3                Seg_Buf[0] = 12;
+ 218   3                Seg_Buf[1] = 10;
+ 219   3                if(Trigger_Count)
+ 220   3                {
+ 221   4                  Seg_Buf[2] = (unsigned char)T_max / 10 % 10;
+ 222   4                  Seg_Buf[3] = (unsigned char)T_max / 1 % 10;
+ 223   4                  Seg_Buf[4] = 11;
+ 224   4                  Seg_Buf[5] = (unsigned char)T_aver / 10 % 10;   
+ 225   4                  Seg_Buf[6] = (unsigned char)T_aver / 1 % 10;;
+ 226   4                  Seg_Buf[7] = (unsigned int)(T_aver*10) / 1 % 10;;     
+ 227   4                  Seg_Point[6] = 1;         
+ 228   4                }
+ 229   3                else
+ 230   3                {
+ 231   4                  Seg_Buf[2] = Seg_Buf[3] = Seg_Buf[4] = Seg_Buf[5] = Seg_Buf[6] = Seg_Buf[7] = 10;
+ 232   4                  Seg_Point[6] = 0;         
+ 233   4                }
+ 234   3              break;
+ 235   3              
+ 236   3              case 1://湿度
+ 237   3                Seg_Buf[0] = 13;
+ 238   3                Seg_Buf[1] = 10;
+C51 COMPILER V9.54   MAIN                                                                  03/04/2025 14:26:33 PAGE 5   
+
+ 239   3                if(Trigger_Count)
+ 240   3                {
+ 241   4                  Seg_Buf[2] = (unsigned char)Wet_max / 10 % 10;
+ 242   4                  Seg_Buf[3] = (unsigned char)Wet_max / 1 % 10;
+ 243   4                  Seg_Buf[4] = 11;
+ 244   4                  Seg_Buf[5] = (unsigned char)Wet_aver / 10 % 10;   
+ 245   4                  Seg_Buf[6] = (unsigned char)Wet_aver / 1 % 10;;
+ 246   4                  Seg_Buf[7] = (unsigned int)(Wet_aver*10) / 1 % 10;;     
+ 247   4                  Seg_Point[6] = 1;         
+ 248   4                }
+ 249   3                else
+ 250   3                {
+ 251   4                  Seg_Buf[2] = Seg_Buf[3] = Seg_Buf[4] = Seg_Buf[5] = Seg_Buf[6] = Seg_Buf[7] = 10;
+ 252   4                  Seg_Point[6] = 0;         
+ 253   4                }
+ 254   3              break;
+ 255   3              
+ 256   3              case 2://时间
+ 257   3                Seg_Buf[0] = 14;
+ 258   3                Seg_Buf[1] = Trigger_Count / 10 % 10;
+ 259   3                Seg_Buf[2] = Trigger_Count / 1 % 10;
+ 260   3                if(Trigger_Count)
+ 261   3                {
+ 262   4                  Seg_Buf[3] = time[0] / 16 % 16;
+ 263   4                  Seg_Buf[4] = time[0] / 1 % 16;
+ 264   4                  Seg_Buf[5] = 11;    
+ 265   4                  Seg_Buf[6] = time[1] / 16 % 16;
+ 266   4                  Seg_Buf[7] = time[1] / 1 % 16;                
+ 267   4                  Seg_Point[6] = 0;         
+ 268   4                }
+ 269   3                else
+ 270   3                {
+ 271   4                  Seg_Buf[3] = Seg_Buf[4] = Seg_Buf[5] = Seg_Buf[6] = Seg_Buf[7] = 10;        
+ 272   4                }
+ 273   3              break;
+ 274   3            }
+ 275   2          break;
+ 276   2            
+ 277   2          case 2://参数界面
+ 278   2            ucLed[2] = 0;
+ 279   2            ucLed[1] = 0;
+ 280   2            Seg_Buf[0] = 15;
+ 281   2            Seg_Buf[1] = 10;
+ 282   2            Seg_Buf[2] = 10;
+ 283   2            Seg_Buf[3] = 10;
+ 284   2            Seg_Buf[4] = 10;
+ 285   2            Seg_Buf[5] = 10;    
+ 286   2            Seg_Buf[6] = T_Para / 10 % 10;
+ 287   2            Seg_Buf[7] = T_Para % 10;               
+ 288   2            Seg_Point[6] = 0;
+ 289   2          break;
+ 290   2          
+ 291   2          case 3://温湿度界面
+ 292   2            Seg_Point[6] = 0;         
+ 293   2            ucLed[0] = 0;
+ 294   2            ucLed[1] = 0;
+ 295   2            ucLed[2] = 1;
+ 296   2            Seg_Buf[0] = 16;
+ 297   2            Seg_Buf[1] = 10;
+ 298   2            Seg_Buf[2] = 10;
+ 299   2            Seg_Buf[3] = (unsigned char)T / 10 % 10;
+ 300   2            Seg_Buf[4] = (unsigned char)T / 1 % 10;
+C51 COMPILER V9.54   MAIN                                                                  03/04/2025 14:26:33 PAGE 6   
+
+ 301   2            Seg_Buf[5] = 11;
+ 302   2            if(Wet_Valid == 1)
+ 303   2            {
+ 304   3              ucLed[4] = 0;
+ 305   3              Seg_Buf[6] = (unsigned char)Wet / 10 % 10;
+ 306   3              Seg_Buf[7] = (unsigned char)Wet / 1 % 10;                           
+ 307   3            }
+ 308   2            else if(Wet_Valid == 0)
+ 309   2            {
+ 310   3              ucLed[4] = 1;
+ 311   3              Seg_Buf[6] = Seg_Buf[7] = 17;       
+ 312   3            }
+ 313   2          Delay3000ms();
+ 314   2          break;
+ 315   2        }
+ 316   1      }
+ 317          
+ 318          /*其他显示函数*/
+ 319          void Led_Proc()
+ 320          {
+ 321   1        if(T > T_Para)
+ 322   1          ucLed[3] = L4_Star?1:0;
+ 323   1        
+ 324   1        if((Trigger_Count>=2)&&(T_data[Trigger_Count]>T_data[Trigger_Count-1])&&(Wet_data[Trigger_Count]>Wet_data
+             -[Trigger_Count-1]))
+ 325   1          ucLed[5] = 1;
+ 326   1        else
+ 327   1          ucLed[5] = 0;
+ 328   1      }
+ 329          
+ 330          void Timer0Init(void)   //1毫秒@12.000MHz
+ 331          {
+ 332   1        AUXR &= 0x7F;     //定时器时钟12T模式
+ 333   1        TMOD &= 0xF0;     //设置定时器模式
+ 334   1        TMOD |= 0x05;
+ 335   1        TL0 = 0x00;       //设置定时初始值
+ 336   1        TH0 = 0x00;       //设置定时初始值
+ 337   1        TF0 = 0;        //清除TF0标志
+ 338   1        TR0 = 1;        //定时器0开始计数
+ 339   1      }
+ 340          
+ 341          /*定时器1中断初始化函数*/
+ 342          void Timer1Init(void)   //1毫秒@12.000MHz
+ 343          {
+ 344   1        AUXR &= 0xBF;     //定时器时钟12T模式
+ 345   1        TMOD &= 0x0F;     //设置定时器模式
+ 346   1        TL1 = 0x18;       //设置定时初始值
+ 347   1        TH1 = 0xFC;       //设置定时初始值
+ 348   1        TF1 = 0;        //清除TF1标志
+ 349   1        TR1 = 1;        //定时器1开始计时
+ 350   1        ET1 = 1;
+ 351   1        EA = 1;
+ 352   1      }
+ 353          
+ 354          
+ 355          /*定时器1中断服务函数*/
+ 356          void Timer1Server() interrupt 3
+ 357          {
+ 358   1        if(++Key_Slow_Down == 10) Key_Slow_Down = 0;//按键减速专用
+ 359   1        if(++Seg_Slow_Down == 500) Seg_Slow_Down = 0;//数码管减速专用
+ 360   1        if(++Seg_Pos == 8) Seg_Pos = 0;//数码管显示专用
+ 361   1        Seg_Disp(Seg_Pos,Seg_Buf[Seg_Pos],Seg_Point[Seg_Pos]);
+C51 COMPILER V9.54   MAIN                                                                  03/04/2025 14:26:33 PAGE 7   
+
+ 362   1        Led_Disp(Seg_Pos,ucLed[Seg_Pos]);
+ 363   1        
+ 364   1        if(++Timer_1000Ms == 1000)//获取频率值
+ 365   1        {
+ 366   2          Timer_1000Ms = 0;
+ 367   2          Freq = TH0 << 8 | TL0;
+ 368   2          TH0 = 0;
+ 369   2          TL0 = 0;
+ 370   2        } 
+ 371   1        
+ 372   1        if(Key_Flag == 1)
+ 373   1        {
+ 374   2          if(++Timer_2s == 2100)
+ 375   2            Timer_2s = 2100;
+ 376   2        }
+ 377   1        
+ 378   1        if(++Timer_100Ms == 100)
+ 379   1        {
+ 380   2          Timer_100Ms = 0;
+ 381   2          L4_Star ^= 1;
+ 382   2        }
+ 383   1      }
+ 384          
+ 385          /*延时函数*/
+ 386          void Delay750ms(void) //@12.000MHz
+ 387          {
+ 388   1        unsigned char data i, j, k;
+ 389   1        j = 51;
+ 390   1        k = 182;
+ 391   1        do
+ 392   1        {
+ 393   2          do
+ 394   2          {
+ 395   3            while (--k);
+ 396   3          } while (--j);
+ 397   2        } while (--i);
+ 398   1      }
+ 399          
+ 400          /*Main*/
+ 401          void main()
+ 402          {
+ 403   1        read_t();
+ 404   1        Delay750ms();
+ 405   1        Set_Rtc(time);
+ 406   1        Read_Rtc(time);
+ 407   1        System_Init();
+ 408   1        Timer0Init();
+ 409   1        Timer1Init();
+ 410   1        while(1)
+ 411   1        {
+ 412   2          Key_Proc();
+ 413   2          Seg_Proc();
+ 414   2          Led_Proc();
+ 415   2        }
+ 416   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   1896    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =     97    ----
+   PDATA SIZE       =   ----    ----
+C51 COMPILER V9.54   MAIN                                                                  03/04/2025 14:26:33 PAGE 8   
+
+   DATA SIZE        =     64       1
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =      5    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

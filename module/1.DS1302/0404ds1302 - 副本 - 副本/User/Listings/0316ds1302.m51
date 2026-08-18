@@ -1,0 +1,179 @@
+BL51 BANKED LINKER/LOCATER V6.22                                                        04/04/2025  12:00:56  PAGE 1
+
+
+BL51 BANKED LINKER/LOCATER V6.22, INVOKED BY:
+D:\KEIL5\C51\BIN\BL51.EXE .\Objects\ds1302.obj TO .\Objects\0316ds1302 PRINT (.\Listings\0316ds1302.m51) RAMSIZE (256)
+
+
+MEMORY MODEL: SMALL
+
+
+INPUT MODULES INCLUDED:
+  .\Objects\ds1302.obj (DS1302)
+  D:\KEIL5\C51\LIB\C51S.LIB (?C?CLDPTR)
+  D:\KEIL5\C51\LIB\C51S.LIB (?C?CLDOPTR)
+  D:\KEIL5\C51\LIB\C51S.LIB (?C?CSTPTR)
+  D:\KEIL5\C51\LIB\C51S.LIB (?C?CSTOPTR)
+
+
+LINK MAP OF MODULE:  .\Objects\0316ds1302 (DS1302)
+
+
+            TYPE    BASE      LENGTH    RELOCATION   SEGMENT NAME
+            -----------------------------------------------------
+
+            * * * * * * *   D A T A   M E M O R Y   * * * * * * *
+            REG     0000H     0008H     ABSOLUTE     "REG BANK 0"
+
+            * * * * * * *   C O D E   M E M O R Y   * * * * * * *
+            CODE    0000H     007AH     UNIT         ?C?LIB_CODE
+            CODE    007AH     0034H     UNIT         ?PR?_READ_DS1302_BYTE?DS1302
+            CODE    00AEH     002FH     UNIT         ?PR?_SET_RTC?DS1302
+            CODE    00DDH     0021H     UNIT         ?PR?_READ_RTC?DS1302
+            CODE    00FEH     0014H     UNIT         ?PR?_WRITE_DS1302_BYTE?DS1302
+            CODE    0112H     0013H     UNIT         ?PR?_WRITE_DS1302?DS1302
+
+
+
+OVERLAY MAP OF MODULE:   .\Objects\0316ds1302 (DS1302)
+
+
+SEGMENT
+  +--> CALLED SEGMENT
+---------------------
+
+
+SYMBOL TABLE OF MODULE:  .\Objects\0316ds1302 (DS1302)
+
+  VALUE           TYPE          NAME
+  ----------------------------------
+
+  -------         MODULE        DS1302
+  C:0000H         SYMBOL        _ICE_DUMMY_
+  D:0090H         PUBLIC        P1
+  D:00A0H         PUBLIC        P2
+  D:00B0H         PUBLIC        P3
+  C:00DDH         PUBLIC        _Read_Rtc
+  D:00A8H         PUBLIC        IE
+  D:00B8H         PUBLIC        IP
+  D:0098H         PUBLIC        SCON
+  D:0088H         PUBLIC        TCON
+  C:00AEH         PUBLIC        _Set_Rtc
+BL51 BANKED LINKER/LOCATER V6.22                                                      04/04/2025  12:00:56  PAGE 2
+
+
+  C:007AH         PUBLIC        _Read_Ds1302_Byte
+  B:00A0H.3       PUBLIC        SDA
+  B:0090H.7       PUBLIC        SCK
+  C:00FEH         PUBLIC        _Write_Ds1302_Byte
+  D:00C8H         PUBLIC        T2CON
+  C:0112H         PUBLIC        _Write_Ds1302
+  B:0090H.3       PUBLIC        RST
+  D:00D0H         PUBLIC        PSW
+  -------         PROC          _WRITE_DS1302
+  D:0007H         SYMBOL        temp
+  -------         DO            
+  D:0006H         SYMBOL        i
+  -------         ENDDO         
+  C:0112H         LINE#         9
+  C:0112H         LINE#         10
+  C:0112H         LINE#         12
+  C:0114H         LINE#         13
+  C:0114H         LINE#         14
+  C:0116H         LINE#         15
+  C:011AH         LINE#         16
+  C:011EH         LINE#         17
+  C:0120H         LINE#         18
+  C:0124H         LINE#         19
+  -------         ENDPROC       _WRITE_DS1302
+  -------         PROC          _WRITE_DS1302_BYTE
+  D:0007H         SYMBOL        address
+  D:0005H         SYMBOL        dat
+  C:00FEH         LINE#         22
+  C:00FEH         LINE#         23
+  C:00FEH         LINE#         24
+  C:0101H         LINE#         25
+  C:0104H         LINE#         26
+  C:0107H         LINE#         27
+  C:010AH         LINE#         28
+  C:010FH         LINE#         29
+  C:0111H         LINE#         30
+  -------         ENDPROC       _WRITE_DS1302_BYTE
+  -------         PROC          _READ_DS1302_BYTE
+  D:0007H         SYMBOL        address
+  -------         DO            
+  D:0007H         SYMBOL        i
+  D:0005H         SYMBOL        temp
+  -------         ENDDO         
+  C:007AH         LINE#         33
+  C:007AH         LINE#         34
+  C:007AH         LINE#         35
+  C:007CH         LINE#         36
+  C:007FH         LINE#         37
+  C:0082H         LINE#         38
+  C:0085H         LINE#         39
+  C:0088H         LINE#         40
+  C:008AH         LINE#         41
+  C:008AH         LINE#         42
+  C:008CH         LINE#         43
+  C:0090H         LINE#         44
+  C:0093H         LINE#         45
+  C:0096H         LINE#         46
+BL51 BANKED LINKER/LOCATER V6.22                                                      04/04/2025  12:00:56  PAGE 3
+
+
+  C:0098H         LINE#         47
+  C:009CH         LINE#         48
+  C:009FH         LINE#         49
+  C:00A2H         LINE#         50
+  C:00A5H         LINE#         51
+  C:00A8H         LINE#         52
+  C:00ABH         LINE#         53
+  C:00ADH         LINE#         54
+  -------         ENDPROC       _READ_DS1302_BYTE
+  -------         PROC          _SET_RTC
+  D:0001H         SYMBOL        ucRtc
+  C:00AEH         LINE#         56
+  C:00AEH         LINE#         57
+  C:00AEH         LINE#         58
+  C:00B5H         LINE#         59
+  C:00BEH         LINE#         60
+  C:00CAH         LINE#         61
+  C:00D6H         LINE#         62
+  -------         ENDPROC       _SET_RTC
+  -------         PROC          _READ_RTC
+  D:0001H         SYMBOL        ucRtc
+  C:00DDH         LINE#         65
+  C:00DDH         LINE#         66
+  C:00DDH         LINE#         67
+  C:00E6H         LINE#         68
+  C:00F2H         LINE#         69
+  -------         ENDPROC       _READ_RTC
+  -------         ENDMOD        DS1302
+
+  -------         MODULE        ?C?CLDPTR
+  C:0000H         PUBLIC        ?C?CLDPTR
+  -------         ENDMOD        ?C?CLDPTR
+
+  -------         MODULE        ?C?CLDOPTR
+  C:0019H         PUBLIC        ?C?CLDOPTR
+  -------         ENDMOD        ?C?CLDOPTR
+
+  -------         MODULE        ?C?CSTPTR
+  C:0046H         PUBLIC        ?C?CSTPTR
+  -------         ENDMOD        ?C?CSTPTR
+
+  -------         MODULE        ?C?CSTOPTR
+  C:0058H         PUBLIC        ?C?CSTOPTR
+  -------         ENDMOD        ?C?CSTOPTR
+
+*** WARNING L16: UNCALLED SEGMENT, IGNORED FOR OVERLAY PROCESS
+    SEGMENT: ?PR?_SET_RTC?DS1302
+
+*** WARNING L16: UNCALLED SEGMENT, IGNORED FOR OVERLAY PROCESS
+    SEGMENT: ?PR?_READ_RTC?DS1302
+
+*** WARNING L10: CANNOT DETERMINE ROOT SEGMENT
+
+Program Size: data=8.0 xdata=0 code=293
+LINK/LOCATE RUN COMPLETE.  3 WARNING(S),  0 ERROR(S)
